@@ -1,0 +1,138 @@
+---
+title: "reactable-timeline"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(lubridate)
+library(reactable)
+library(htmltools)
+library(scales)
+```
+
+```{r}
+event_df <- read_rds("event_df.rds")
+customer_df <- read_rds("customer_df.rds")
+```
+
+```{r}
+convert_timestamps <- function(t1, t2, grid_spacing = "days") {
+  
+  # extract timestamp range
+  t01 <- min(t1)
+  t02 <- max(t2)
+  
+  # normalize event timestamps within total range
+  left <- time_length(t1 - t01)/time_length(t02 - t01)
+  width <- time_length(t2 - t1)/time_length(t02 - t01)
+  
+  # create vector of grids
+  if (is.null(grid_spacing)) {
+    u <- NULL
+  } else {
+    u <- seq(ceiling_date(t01, unit = grid_spacing),
+             floor_date(t02, unit = grid_spacing),
+             by = grid_spacing)
+    
+    u <- time_length(u - t01)/time_length(t02 - t01)
+  }
+  
+  # splice values into list
+  out <- list()
+  
+  for (i in 1:length(left)) {
+    out[[i]] <- list(left[i], width[i], c(u))
+  }
+  
+  out
+}
+
+event_df1 <- event_df %>% 
+  mutate(timestamps = convert_timestamps(t1, t2, grid_spacing = "hours"))
+
+customer_df <- customer_df %>% 
+  mutate(timestamps = convert_timestamps(enter, exit, grid_spacing = "hours"))
+```
+
+```{r}
+create_timeline_bar <- function(left = 0, width = "100%", fill = "#00bfc4", grid) {
+  left <- scales::percent(left)
+  width <- scales::percent(width)
+  grid <- scales::percent(grid)
+  
+  bar <- div(style = list(
+    position = "absolute",
+    left = left,
+    background = fill,
+    width = width,
+    height = "140%")
+  )
+  
+  grid_div <- map(grid, ~ {
+    div(style = list(
+      position = "absolute",
+      left = ..1,
+      background = "slategray",
+      width = "1px",
+      height = "140%")
+    )
+  })
+  
+  chart <- div(style = list(
+    flexGrow = 1,
+    position = "relative",
+    display = "flex",
+    alignItems = "center",
+    height = "100%"
+  ), 
+  bar,
+  grid_div)
+  
+  div(style = list(
+    height = "100%"
+  ), 
+  chart)
+}
+```
+
+
+```{r}
+reactable(event_df1,
+          fullWidth = FALSE,
+          columns = list(
+            event = colDef(width = 75),
+            t1 = colDef(width = 200, format = colFormat(datetime = TRUE)),
+            t2 = colDef(width = 200, format = colFormat(datetime = TRUE)),
+            timestamps = colDef(
+              width = 500,
+              cell = function(value) {
+                create_timeline_bar(left = value[[1]], width = value[[2]], grid = value[[3]])
+              }
+            )
+          )
+)
+```
+
+```{r}
+reactable(customer_df,
+          fullWidth = FALSE,
+          columns = list(
+            customer = colDef(width = 100),
+            revenue = colDef(width = 100, format = colFormat(digits = 1)),
+            enter = colDef(width = 200, format = colFormat(datetime = TRUE)),
+            exit = colDef(width = 200, format = colFormat(datetime = TRUE)),
+            timestamps = colDef(
+              width = 500,
+              cell = function(value) {
+                create_timeline_bar(left = value[[1]], width = value[[2]], grid = value[[3]])
+              }
+            )
+          )
+)
+```
+
