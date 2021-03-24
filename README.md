@@ -66,7 +66,7 @@ post](https://sccm.io/post/reactable-timeline/).
 ``` r
 library(reactable)
 
-sales <- readr::read_csv("https://raw.githubusercontent.com/sccmckenzie/reactable-timeline/master/sales.csv")
+sales <- read_csv("https://raw.githubusercontent.com/sccmckenzie/reactable-timeline/master/sales.csv")
 
 sales %>%
   mutate(timeline = convert_timestamps(enter, exit)) %>%
@@ -80,4 +80,4 @@ sales %>%
   )
 ```
 
-![](readme-preview.png)
+![](readme-preview.PNG)
